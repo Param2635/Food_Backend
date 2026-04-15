@@ -19,6 +19,7 @@ const PORT = process.env.PORT || 5001;
 
 // Security Middleware 
 app.use(helmet());
+app.use(morgan('dev'));
 
 // Rate Limiting
 const Limiter = rateLimit({
@@ -27,6 +28,8 @@ const Limiter = rateLimit({
     message: { success: false, message: 'You have reached you Limit, please try again after sometime.'}
 })
 app.use(Limiter);
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended:true }));
 
 // ====================
 // Cors // its is important for Real Device & Simulation
@@ -39,52 +42,29 @@ app.use(cors({
     //     'https://196.168.1.*', // for hosting on local network(eg: same wifi/lan)
     //     '*'                                // ← Remove this in future for better security
     // ],
-    origin: true,
+    origin: '*',
     method: ['GET', 'POST', 'PUT','DELETE', 'PATCH'],
-    allowdedHeaders: ['Contant-Type', 'Autherization']
+    credentials: true,
+    // allowdedHeaders: ['Contant-Type', 'Autherization']
 }));
-
-// Body Parsing
-app.use(express.json());
-app.use(express.urlencoded({ extended:true }));
-
-// Login
-app.use(morgan('dev'));
 
 // ====================
 // Routes
 // ====================
+import mainRoute from './routes/index.js';
 
-app.get('/', (req,res) => {
-    res.json({
-        success: true,
-        message: 'Backend is Running successfully',
-        version: '1.0.0',
-        timestamp: new Date().toISOString(),
-    });
-});
-
-// ====================
-// testing route for flutter app
-// ====================
-
-app.get('/api/v1/health', (req, res) => {
-    res.json({
-        success: true,
-        message: 'Testing Server is ready for app.',
-        uptime: process.uptime(),
-    });
-});
+// Use routes with /api/v1 prefix 
+app.use('/api/v1', mainRoute);
 
 // ====================
 // Global Level Error Handeling
 // ====================
 app.use((err, req, res, next) => {
     console.error(err.stack);
-    res.state(500).json({
+    res.status(err.status || 500).json({
         success: false,
-        message: 'Something went wrong on the Server.',
-        error: process.env.NODE_ENV === 'development' ? err.message: undefined
+        message: err.message || 'Internal Server Error',
+        ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
     });
 });
 
@@ -93,8 +73,6 @@ app.use((err, req, res, next) => {
 // ====================
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server is running on port ${PORT}`); // Shows Server Port No.
-    console.log(`local: http://localhost:${PORT}`); // Shows localhost Port No.
-    console.log(`Network: http://Our_local_ip`); // ip we will use in our app
-    console.log(`run with npm run dev`); 
+    console.log(`Backend running on http://localhost:${PORT}`);
+    console.log(`Network: http://localhost:${PORT}/api/v1/`); // ip we will use in our app
 });
