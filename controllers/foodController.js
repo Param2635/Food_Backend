@@ -1,40 +1,74 @@
-// For now, we'll use in-memory data (easy for testing)
-// Later we'll connect to database
-
-let foods = [
-  { id: 1, name: "Pizza Margherita", price: 299, category: "Italian" },
-  { id: 2, name: "Butter Chicken", price: 349, category: "Indian" }
-];
+import db from '../config/database.js';
 
 export const getAllFoods = (req, res) => {
-  res.json({
-    success: true,
-    count: foods.length,
-    data: foods
-  });
+  try {
+    const stmt = db.prepare('SELECT * FROM foods ORDER BY id DESC');
+    const foods = stmt.all();
+
+    res.json({
+      success: true,
+      count: foods.length,
+      data: foods
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
 };
 
 export const getFoodById = (req, res) => {
-  const food = foods.find(f => f.id === parseInt(req.params.id));
-  if (!food) {
-    return res.status(404).json({ success: false, message: "Food not found" });
+  try {
+    const stmt = db.prepare('SELECT * FROM foods WHERE id = ?');
+    const food = stmt.get(req.params.id);
+
+    if (!food) {
+      return res.status(404).json({ success: false, message: "Food not found" });
+    }
+
+    res.json({ success: true, data: food });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
-  res.json({ success: true, data: food });
 };
 
 export const addFood = (req, res) => {
-  const { name, price, category } = req.body;
-  if (!name || !price) {
-    return res.status(400).json({ success: false, message: "Name and price are required" });
+  try {
+    const { name, price, category, description, image_url, is_available } = req.body;
+
+    if (!name || !price) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Name and price are required" 
+      });
+    }
+
+    const stmt = db.prepare(`
+      INSERT INTO foods (name, price, category, description, image_url, is_available)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    const result = stmt.run(
+      name,
+      Number(price),
+      category || null,
+      description || null,
+      image_url || null,
+      is_available === false ? 0 : 1     // Convert to 0 or 1
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Food added successfully",
+      data: { 
+        id: result.lastInsertRowid, 
+        name, 
+        price: Number(price), 
+        category, 
+        description, 
+        image_url, 
+        is_available: is_available === false ? 0 : 1 
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
-
-  const newFood = {
-    id: foods.length + 1,
-    name,
-    price: Number(price),
-    category: category || "Uncategorized"
-  };
-
-  foods.push(newFood);
-  res.status(201).json({ success: true, message: "Food added", data: newFood });
 };

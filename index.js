@@ -5,6 +5,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
+import initializeDatabase from './config/initDb.js';
 
 // Loading Envirenment Variable
 dotenv.config();
@@ -23,10 +24,15 @@ app.use(morgan('dev'));
 
 // Rate Limiting
 const Limiter = rateLimit({
-    serverRequest: 15 * 60 * 1000, // minute * sec * ms // 15 minutes
-    max: 100,
-    message: { success: false, message: 'You have reached you Limit, please try again after sometime.'}
-})
+    serverRequest: 15 * 60 * 1000,  // minute * sec * ms // 15 minutes
+    max: 100,                       // 100 requests per IP
+    standardHeaders: true,          // Return rate limit info in headers
+    legacyHeaders: false,           // Disable the old X-RateLimit headers
+    message: {
+        success: false,
+        message: 'You have reached you Limit, please try again after sometime.'
+    }
+});
 app.use(Limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended:true }));
@@ -47,6 +53,9 @@ app.use(cors({
     credentials: true,
     // allowdedHeaders: ['Contant-Type', 'Autherization']
 }));
+
+// Call it early
+initializeDatabase();
 
 // ====================
 // Routes
