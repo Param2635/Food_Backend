@@ -2,10 +2,11 @@ import { z } from 'zod';
 
 export const foodSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters"),
-  price: z.number().positive("Price must be positive"),
+  // Accept number or numeric string from clients; coerce to number.
+  price: z.coerce.number().positive("Price must be positive"),
   category: z.string().optional(),
   description: z.string().optional(),
-  image_url: z.string().url().optional().or(z.literal('')),
+  image_url: z.union([z.string().url(), z.literal('')]).optional(),
   is_available: z.boolean().default(true)
 });
 
@@ -23,13 +24,14 @@ export const registerSchema = z.object({
 // Helper to validate
 export const validate = (schema) => (req, res, next) => {
   try {
-    schema.parse(req.body);
+    // Apply coercions/defaults so downstream handlers see the validated shape.
+    req.body = schema.parse(req.body);
     next();
   } catch (error) {
     return res.status(400).json({
       success: false,
       message: "Validation error",
-      errors: error.errors
+      errors: error.issues || error.errors
     });
   }
 };

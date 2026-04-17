@@ -53,5 +53,4 @@ function initializeDatabase() {
   }
 }
 
-initializeDatabase();
 export default initializeDatabase;
